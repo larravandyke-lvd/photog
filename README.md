@@ -1,126 +1,93 @@
-# photog / gear-inventory
+# PopPop's Collection — photography gear inventory
 
-A photography equipment inventory tracker. Catalogue each body, lens, and light;
-photograph it with your device camera; and have Claude research its specs,
-used-market value, and known issues.
+A shared app for you and Eric to photograph, catalog, and price out the photography
+equipment for sale. Each item gets a sequential number (write it on the sticker),
+multiple photos, AI-generated identification/condition/pricing, and a status you
+move through as you work through selling it.
 
-Built with Next.js (App Router) + TypeScript + Tailwind, Supabase for data and
-photo storage, and the Claude API with web search for research.
+## What you need before deploying (15 minutes, one-time)
 
-## Features
+1. **A GitHub account** (free) — github.com
+2. **A Vercel account** (free tier is plenty) — vercel.com, sign up with GitHub
+3. **A Supabase account** (free tier is plenty) — supabase.com
+4. **An Anthropic API key** — console.anthropic.com → API Keys → Create Key
+   (This is billed separately from your Claude.ai subscription, pay-as-you-go.
+   Each item's research call costs a few cents.)
 
-- **Inventory** — name, brand, model, category, serial number, condition, purchase
-  date and price, estimated value, and free-form notes, with a running total across
-  the collection.
-- **Camera capture** — photograph an item in the browser (`getUserMedia`) and store
-  the frame in a private Supabase bucket; the UI reads it back through short-lived
-  signed URLs.
-- **Claude research** — one click searches the web for the exact model and records a
-  structured summary: key specs, release year, MSRP, current used-market value,
-  documented reliability problems, care notes, and sources.
+## Step 1 — Create the Supabase project
 
-## Setup
+1. New project at supabase.com → note the project's **URL** and **service_role key**
+   (Project Settings → API — use the `service_role` secret key, not `anon`).
+2. Open the SQL Editor in Supabase → paste in the contents of `supabase/schema.sql`
+   from this project → Run. This creates the tables and the photo storage bucket.
+   If you already had this project running before weight/shipping/serial-number/net-earnings
+   tracking was added, also run `supabase/migration_002_weight.sql` once.
 
-### 1. Install
-
-```bash
-npm install
-```
-
-### 2. Supabase
-
-Create a project, then apply the schema in `supabase/migrations/0001_init.sql` —
-either `supabase db push` with the CLI, or paste it into the dashboard SQL editor.
-It creates the `gear_items` table, its `updated_at` trigger, and the private
-`gear-photos` storage bucket.
-
-Row-level security is enabled on `gear_items` with **no policies**, on purpose. The
-app reads and writes only from server code holding the service-role key, which
-bypasses RLS, so the anon key grants no access to anything. Adding real user
-accounts means adding per-user policies here.
-
-### 3. Environment
-
-Copy `.env.example` to `.env.local` and fill in:
-
-| Variable | Where it comes from |
-| --- | --- |
-| `SUPABASE_URL` | Supabase → Project Settings → API |
-| `SUPABASE_SERVICE_ROLE_KEY` | same page — **server-only**, never `NEXT_PUBLIC_` |
-| `ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys |
-
-### 4. Run
+## Step 2 — Push this code to GitHub
 
 ```bash
-npm run dev      # http://localhost:3000
+cd gear-inventory
+git init
+git add .
+git commit -m "Initial commit"
+gh repo create poppops-collection --private --source=. --push
 ```
+(No `gh` CLI? Create an empty repo on github.com instead, then
+`git remote add origin <your-repo-url>` and `git push -u origin main`.)
 
-Camera capture needs a secure context: it works on `localhost` and over HTTPS, but
-not on a plain-HTTP host.
+## Step 3 — Deploy to Vercel
 
-## Commands
+1. vercel.com → Add New Project → Import the GitHub repo you just created.
+2. Before the first deploy, add these Environment Variables (from `.env.example`):
+   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`,
+   `ANTHROPIC_API_KEY`, `APP_PIN`
+3. Deploy. You'll get a URL like `poppops-collection.vercel.app`.
 
-| Purpose | Command |
-| --- | --- |
-| Dev server | `npm run dev` |
-| Production build | `npm run build` |
-| Start built app | `npm start` |
-| Lint | `npm run lint` |
-| Typecheck | `npx tsc --noEmit` |
+## Step 4 — Add it to your iPhone home screens
 
-## Deploying to Vercel
+Open the Vercel URL in Safari on your phone → Share → Add to Home Screen.
+It'll use the aperture icon and open full-screen like a native app. Do this on
+Eric's phone too. You'll both only need to enter the PIN once per device.
 
-1. Push this branch and import the repo at [vercel.com/new](https://vercel.com/new).
-   Vercel detects Next.js; no build settings to change.
-2. Add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ANTHROPIC_API_KEY` under
-   **Settings → Environment Variables** for Production, Preview, and Development.
-   None of them are `NEXT_PUBLIC_`, so they stay server-side.
-3. Deploy. Vercel serves over HTTPS, so camera capture works on the deployed URL.
+## Using it
 
-Or from the CLI:
+- Tap **+** → take as many photos as you want of the item → **Done**.
+- You'll see the item's number — write it on a sticker on the physical item.
+- Add any notes (condition quirks, what's included) → **Run AI research**.
+- The AI identifies the item, assesses condition from the photos, and gives you
+  a price range, best venues to sell it, and auction/listing strategy.
+- Move the status along as you work: **Hold → In prep → Ready to sell → Listed → Sold**.
+- The dashboard shows a running estimated value for whatever status filter you're viewing.
+- The AI also reads engraved serial numbers, reads the specific model number (not just the
+  general product line), notes brand separately, and flags if original packaging is visible
+  in a photo. You can always correct any of these by hand on the item page.
+- Give it a weight in grams or ounces (or a scale photo — it'll try to read the display) and
+  it'll fold that into its shipping method advice.
+- When you mark something Sold, enter the sale price and what shipping actually cost you —
+  the app shows net earned per item, and the inventory book totals it across everything sold.
+- **Inventory book** (link at the top of the dashboard): a printable, checkable list of every
+  item sorted by sticker code — photo, code, model, serial, weight, status, price — meant to
+  be printed and physically checked off as you package and ship things. There's also a
+  **Download CSV** button next to it for opening the whole inventory in a spreadsheet.
 
-```bash
-npx vercel link
-npx vercel env add SUPABASE_URL
-npx vercel env add SUPABASE_SERVICE_ROLE_KEY
-npx vercel env add ANTHROPIC_API_KEY
-npx vercel --prod
-```
+## A few notes on the selling advice, since you asked me to be the expert
 
-`/api/research` sets `maxDuration = 300` because a web-search research turn can run
-well past the default. Lower it if your plan's ceiling is shorter.
+- **Price ranges reflect sold prices, not asking prices.** Asking prices on eBay/FB run
+  high because sellers anchor optimistically; what matters is what things actually sell for.
+- **No-reserve auctions (starting at $0.99–$1) work best for genuinely desirable items**
+  with real demand — they create bidding urgency and often land at or above true market
+  value. They're a bad idea for common gear that might only draw one bidder; use a fixed
+  price or reserve auction there instead.
+- **Bundle low-value or incomplete items** (body without a lens, orphaned caps/straps/filters)
+  rather than listing them alone — shipping and listing effort eat the margin on anything
+  under roughly $25–30 sold individually.
+- **KEH/MPB trade-in is the "sell it today, no effort" option** — expect meaningfully less
+  than a well-run private sale, but zero listing time and no flaky buyers.
+- **Facebook Marketplace wins for bulky/local-pickup gear** (tripods, studio lighting,
+  cases) where shipping cost would erase the value.
+- **Niche system forums/Facebook groups** (specific lens mounts, specific brands) often
+  have buyers who know exactly what they're looking at and will pay closer to top-of-range
+  than a generalist marketplace.
 
-## Layout
-
-```
-src/
-  app/
-    page.tsx                      inventory list
-    gear/[id]/page.tsx            item detail
-    api/gear/route.ts             list + create
-    api/gear/[id]/route.ts        read + update + delete
-    api/gear/[id]/photo/route.ts  camera upload
-    api/research/route.ts         Claude research
-  components/                     camera capture, forms, detail, research panel
-  lib/
-    gear.ts                       Supabase data access + signed URLs
-    research.ts                   Claude API calls
-    supabase.ts                   service-role client
-    types.ts  validate.ts  format.ts  http.ts
-supabase/migrations/0001_init.sql
-```
-
-## How the research call works
-
-`src/lib/research.ts` makes two calls to `claude-opus-5`:
-
-1. **Research** — adaptive thinking plus the `web_search` server tool, with
-   `pause_turn` resumed so a long search finishes, and server-side refusal
-   fallbacks enabled.
-2. **Structure** — `messages.parse` reshapes those findings into the stored schema.
-
-The two are kept separate because the citations carried by web-search results
-cannot be combined with `output_config.format` in a single request. The extraction
-step is instructed to use only what the research notes established and to leave a
-field null otherwise — an inventory used for insurance should not carry invented
-numbers.
+The app applies this same logic per item automatically — this is just the reasoning
+behind what it tells you.
