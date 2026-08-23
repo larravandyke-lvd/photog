@@ -1,0 +1,24 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Local Claude Code overrides (shared settings live in .claude/settings.json)
+.claude/settings.local.json
+
+# Photo assets and derivatives — keep binaries out of git
+*.raw
+*.cr2
+*.nef
+*.arw
+*.dng
+*.tif
+*.tiff
+*.psd
