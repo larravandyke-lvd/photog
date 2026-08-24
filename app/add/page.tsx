@@ -89,6 +89,9 @@ export default function AddItemPage() {
           <p className="text-ink/50 text-sm text-center max-w-xs mt-2">
             You can select multiple photos at once from your library or drag them in on a laptop.
           </p>
+          {error && (
+            <p className="text-rust text-sm text-center max-w-xs mt-2 font-medium">{error}</p>
+          )}
         </div>
         <input
           ref={libraryInputRef}
