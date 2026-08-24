@@ -1,33 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CameraCapture from '@/components/CameraCapture';
 import Header from '@/components/Header';
 import { getItemCode } from '@/lib/itemCode';
 
-type Stage = 'capture' | 'uploading' | 'notes' | 'researching' | 'done';
+type Stage = 'choose' | 'capture' | 'uploading' | 'notes' | 'researching' | 'done';
 
 export default function AddItemPage() {
-  const [stage, setStage] = useState<Stage>('capture');
+  const [stage, setStage] = useState<Stage>('choose');
   const [itemId, setItemId] = useState<string | null>(null);
   const [itemNumber, setItemNumber] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
+  const libraryInputRef = useRef<HTMLInputElement>(null);
 
   async function handlePhotosDone(photos: Blob[]) {
     setStage('uploading');
     setError('');
     try {
-      // 1. Create the item row (assigns the sequential number)
       const createRes = await fetch('/api/items', { method: 'POST' });
       const { item, error: createErr } = await createRes.json();
       if (createErr) throw new Error(createErr);
       setItemId(item.id);
       setItemNumber(item.item_number);
 
-      // 2. Upload each photo
       for (let i = 0; i < photos.length; i++) {
         const form = new FormData();
         form.append('file', photos[i], `photo-${i}.jpg`);
@@ -70,9 +69,53 @@ export default function AddItemPage() {
     }
   }
 
+  if (stage === 'choose') {
+    return (
+      <main className="min-h-screen bg-paper flex flex-col">
+        <Header subtitle="Add a new item" />
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6">
+          <button
+            onClick={() => setStage('capture')}
+            className="w-full max-w-xs bg-rust text-paper py-5 rounded-xl text-lg font-medium"
+          >
+            📷 Take photos
+          </button>
+          <button
+            onClick={() => libraryInputRef.current?.click()}
+            className="w-full max-w-xs border-2 border-ink text-ink py-5 rounded-xl text-lg font-medium"
+          >
+            🖼️ Choose from library
+          </button>
+          <p className="text-ink/50 text-sm text-center max-w-xs mt-2">
+            You can select multiple photos at once from your library or drag them in on a laptop.
+          </p>
+        </div>
+        <input
+          ref={libraryInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              handlePhotosDone(Array.from(e.target.files));
+            }
+            e.target.value = '';
+          }}
+        />
+      </main>
+    );
+  }
+
   if (stage === 'capture') {
     return (
       <div className="h-screen flex flex-col">
+        <button
+          onClick={() => setStage('choose')}
+          className="absolute top-3 left-3 z-20 bg-charcoal/80 text-paper text-sm px-3 py-1.5 rounded-full"
+        >
+          ← Back
+        </button>
         <CameraCapture onDone={handlePhotosDone} />
         {error && <p className="text-rust text-sm p-3 bg-charcoal">{error}</p>}
       </div>
@@ -137,7 +180,6 @@ export default function AddItemPage() {
     );
   }
 
-  // done
   const sticker = itemNumber ? getItemCode(itemNumber) : null;
   return (
     <main className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 gap-4">
