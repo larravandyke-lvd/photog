@@ -15,6 +15,8 @@ type Item = {
   status: string;
   ai_price_low: number | null;
   ai_price_high: number | null;
+  listed_venue: string | null;
+  ai_venues: { venue: string; why: string }[] | null;
   item_photos: { storage_path: string }[];
 };
 

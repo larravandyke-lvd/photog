@@ -3,11 +3,29 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import ShippingCalculator from '@/components/ShippingCalculator';
 import { getItemCode } from '@/lib/itemCode';
 
 const STATUSES = ['HOLD', 'PREP', 'FOR_SALE', 'LISTED', 'SOLD'];
+const VENUE_OPTIONS = ['eBay', 'Facebook Marketplace', 'KEH', 'MPB', 'Craigslist', 'Local/In-person', 'Other'];
 
-type Venue = { venue: string; why: string };
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="text-xs bg-sand text-ink px-2 py-1 rounded-full shrink-0"
+    >
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  );
+}
+
+type Venue = { venue: string; why: string; shipping_setting?: string };
 type Photo = { id: string; storage_path: string };
 type Item = {
   id: string;
@@ -23,6 +41,9 @@ type Item = {
   ai_price_notes: string | null;
   ai_venues: Venue[] | null;
   ai_auction_strategy: string | null;
+  listing_title: string | null;
+  listing_description: string | null;
+  listed_venue: string | null;
   weight_value: number | null;
   weight_unit: 'g' | 'oz' | null;
   ai_weight_estimate_g: number | null;
@@ -154,6 +175,33 @@ export default function ItemDetailPage() {
           </div>
         </div>
 
+        {(item.status === 'LISTED' || item.status === 'SOLD') && (
+          <div>
+            <p className="text-xs text-ink/50 mb-1">Listed on</p>
+            <div className="flex gap-2 flex-wrap">
+              {VENUE_OPTIONS.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => updateItem({ listed_venue: v })}
+                  className={`text-xs px-3 py-1.5 rounded-full border ${
+                    item.listed_venue === v ? 'bg-moss text-paper border-moss' : 'border-sand text-ink/60'
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+              <button
+                onClick={() => updateItem({ listed_venue: null })}
+                className={`text-xs px-3 py-1.5 rounded-full border ${
+                  !item.listed_venue ? 'bg-ink text-paper border-ink' : 'border-sand text-ink/40'
+                }`}
+              >
+                Decide later
+              </button>
+            </div>
+          </div>
+        )}
+
         {item.status === 'SOLD' && (
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-3">
@@ -181,7 +229,7 @@ export default function ItemDetailPage() {
               </label>
             </div>
             <input
-              defaultValue={item.sold_venue ?? ''}
+              defaultValue={item.sold_venue ?? item.listed_venue ?? ''}
               placeholder="Sold on..."
               onBlur={(e) => updateItem({ sold_venue: e.target.value })}
               className="w-full border border-sand rounded-lg p-2 text-sm"
@@ -236,6 +284,9 @@ export default function ItemDetailPage() {
               AI read ~{Math.round(item.ai_weight_estimate_g)}g from a scale photo — confirm or override above.
             </p>
           )}
+          <div className="mt-3">
+            <ShippingCalculator weightValue={item.weight_value} weightUnit={item.weight_unit} />
+          </div>
         </div>
 
         <div>
@@ -277,14 +328,42 @@ export default function ItemDetailPage() {
                 </p>
                 <p className="text-xs text-ink/50 mt-1">{item.ai_price_notes}</p>
               </div>
+              {item.listing_title && (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-ink/50">Listing title</p>
+                    <CopyButton text={item.listing_title} />
+                  </div>
+                  <p className="text-sm mt-1">{item.listing_title}</p>
+                </div>
+              )}
+              {item.listing_description && (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-ink/50">Listing description</p>
+                    <CopyButton text={item.listing_description} />
+                  </div>
+                  <p className="text-sm mt-1 whitespace-pre-wrap">{item.listing_description}</p>
+                </div>
+              )}
               {item.ai_venues && item.ai_venues.length > 0 && (
                 <div>
                   <p className="text-xs text-ink/50 mb-1">Best places to sell</p>
-                  <ul className="space-y-1.5">
+                  <ul className="space-y-2">
                     {item.ai_venues.map((v, i) => (
-                      <li key={i} className="text-sm">
-                        <span className="font-medium">{v.venue}:</span>{' '}
-                        <span className="text-ink/70">{v.why}</span>
+                      <li key={i} className="text-sm bg-white border border-sand rounded-lg p-2.5">
+                        <p>
+                          <span className="text-xs font-semibold text-rust mr-1">
+                            {i === 0 ? '1st choice' : i === 1 ? '2nd choice' : `${i + 1}th choice`}
+                          </span>
+                          <span className="font-medium">{v.venue}:</span>{' '}
+                          <span className="text-ink/70">{v.why}</span>
+                        </p>
+                        {v.shipping_setting && (
+                          <p className="text-xs text-ink/50 mt-1">
+                            Shipping: {v.shipping_setting}
+                          </p>
+                        )}
                       </li>
                     ))}
                   </ul>

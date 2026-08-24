@@ -18,6 +18,9 @@ create table if not exists items (
   ai_price_notes text,
   ai_venues jsonb,                       -- array of {venue, why, fit_score}
   ai_auction_strategy text,              -- start price / reserve / bundle advice
+  listing_title text,                    -- ready-to-paste, platform-appropriate title
+  listing_description text,              -- ready-to-paste full description
+  listed_venue text,                     -- where it's currently posted (eBay, FB Marketplace, etc), or null if not yet decided
   weight_value numeric,                  -- as entered by you/Eric, in weight_unit
   weight_unit text check (weight_unit in ('g','oz')),
   ai_weight_estimate_g numeric,          -- AI's estimate from a scale photo, in grams, if visible

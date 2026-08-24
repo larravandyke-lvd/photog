@@ -18,6 +18,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 type Photo = { storage_path: string };
+type Venue = { venue: string; why: string };
 type Item = {
   id: string;
   item_number: number;
@@ -26,6 +27,8 @@ type Item = {
   status: string;
   ai_price_low: number | null;
   ai_price_high: number | null;
+  listed_venue: string | null;
+  ai_venues: Venue[] | null;
   item_photos: Photo[];
 };
 
@@ -61,6 +64,9 @@ export default function ItemCard({ item, photoBaseUrl }: { item: Item; photoBase
           {item.title || 'Untitled item'}
         </p>
         <p className="text-xs text-ink/50 truncate">{item.category || '—'}</p>
+        {item.listed_venue && (
+          <p className="text-xs text-moss truncate">on {item.listed_venue}</p>
+        )}
         <div className="flex items-center justify-between mt-2">
           <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_STYLES[item.status] || ''}`}>
             {STATUS_LABELS[item.status] || item.status}
@@ -71,6 +77,15 @@ export default function ItemCard({ item, photoBaseUrl }: { item: Item; photoBase
             </span>
           )}
         </div>
+        {item.ai_venues && item.ai_venues.length > 0 && (
+          <ul className="mt-2 space-y-0.5 border-t border-sand pt-2">
+            {item.ai_venues.slice(0, 3).map((v, i) => (
+              <li key={i} className="text-xs text-ink/60 truncate">
+                <span className="font-semibold text-rust">{i + 1}.</span> {v.venue}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </Link>
   );

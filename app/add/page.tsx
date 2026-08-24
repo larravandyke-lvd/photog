@@ -21,12 +21,14 @@ export default function AddItemPage() {
     setStage('uploading');
     setError('');
     try {
+      // 1. Create the item row (assigns the sequential number)
       const createRes = await fetch('/api/items', { method: 'POST' });
       const { item, error: createErr } = await createRes.json();
       if (createErr) throw new Error(createErr);
       setItemId(item.id);
       setItemNumber(item.item_number);
 
+      // 2. Upload each photo
       for (let i = 0; i < photos.length; i++) {
         const form = new FormData();
         form.append('file', photos[i], `photo-${i}.jpg`);
@@ -183,6 +185,7 @@ export default function AddItemPage() {
     );
   }
 
+  // done
   const sticker = itemNumber ? getItemCode(itemNumber) : null;
   return (
     <main className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 gap-4">

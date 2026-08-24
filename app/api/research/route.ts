@@ -40,7 +40,9 @@ Pricing guidance:
 - Common department-store zoom lenses, entry DSLRs, and bulk-produced items skew low or may only
   be worth bundling.
 
-Venue guidance — recommend 1-3 best-fit venues from this kind of set, with a one-line reason each:
+Venue guidance — recommend 1-3 best-fit venues from this kind of set, with a one-line reason each.
+List them in the "venues" array ordered from best fit to next-best (the array order IS the
+ranking — the first entry is the #1 recommendation, shown to the owner as "1st choice"):
 - eBay: best for anything collectible, rare, or where national/international demand beats local
   pickup friction. Auction format surfaces true market price for uncertain/rare items.
 - KEH Camera / MPB (trade-in or consignment): best for common, clean, functional gear where you
@@ -83,6 +85,24 @@ Weight and shipping guidance:
   should never be shipped in the mount/attached to a body without extra rigid support. Mention if
   double-boxing or a hard case is worth it for anything with glass or precision mechanics.
 
+Ready-to-post listing copy — always generate these so the owner can copy-paste directly:
+- "listing_title": a single title usable across platforms, under 80 characters (eBay's limit,
+  the tightest constraint), front-loaded with the searchable terms a buyer would type: brand,
+  model number, then key condition/inclusion words. E.g. "Canon AE-1 Program 35mm SLR w/ 50mm
+  f1.8 Lens - Tested Working" not "Vintage camera from my grandfather's collection."
+- "listing_description": a full, honest, ready-to-paste description, 3-6 short paragraphs or a
+  paragraph plus a bulleted spec/condition list. Include: what it is (brand/model/era), condition
+  stated plainly (including any flaws — never hide or minimize a flaw, this protects the seller
+  from disputes), what's included (lens caps, straps, original box if present, manuals), and a
+  brief note on how it was tested/verified if that's known from the photos/notes. Do not invent
+  functional claims (e.g. "shutter tested at all speeds") unless the owner's notes said so.
+
+Per-venue shipping settings — for each venue in "venues", add a "shipping_setting" field with the
+concrete setting to choose on that specific platform, e.g. for eBay: "Calculated shipping, USPS
+Priority Mail, add $50+ insurance for anything over $200"; for Facebook Marketplace: "Local
+pickup only, or Shipping via FB's checkout with USPS if buyer requests"; for KEH/MPB: "Their
+prepaid shipping label — no seller shipping decision needed."
+
 Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
 {
   "identification": "string - make/model/era, be specific",
@@ -95,10 +115,12 @@ Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact sha
   "price_low": number,
   "price_high": number,
   "price_notes": "string - what the range assumes",
-  "venues": [ { "venue": "string", "why": "string" } ],
+  "venues": [ { "venue": "string", "why": "string", "shipping_setting": "string" } ],
   "auction_strategy": "string - 2-4 sentences covering start price/reserve/bundle/timing advice",
   "weight_estimate_g": number or null,
-  "shipping_recommendation": "string - box/method/carrier advice, 1-3 sentences"
+  "shipping_recommendation": "string - box/method/carrier advice, 1-3 sentences",
+  "listing_title": "string - under 80 characters, ready to paste as the listing title",
+  "listing_description": "string - full ready-to-paste description, plain text with paragraph breaks"
 }`;
 
 export async function POST(req: Request) {
@@ -198,6 +220,8 @@ export async function POST(req: Request) {
       ai_auction_strategy: parsed.auction_strategy,
       ai_weight_estimate_g: parsed.weight_estimate_g,
       ai_shipping_recommendation: parsed.shipping_recommendation,
+      listing_title: parsed.listing_title,
+      listing_description: parsed.listing_description,
       title: parsed.identification,
       updated_at: new Date().toISOString(),
       ...(parsed.serial_number ? { serial_number: parsed.serial_number } : {}),

@@ -22,6 +22,7 @@ export async function GET() {
   const headers = [
     'Sticker Code', 'Status', 'Brand', 'Model Number', 'Title', 'Category',
     'Serial Number', 'Original Box', 'Weight', 'Price Low', 'Price High',
+    'Listing Title', 'Listing Description', 'Listed On',
     'Sold Price', 'Shipping Cost', 'Net Earned', 'Sold Venue', 'Notes',
   ];
 
@@ -41,6 +42,9 @@ export async function GET() {
       weight,
       i.ai_price_low ?? '',
       i.ai_price_high ?? '',
+      i.listing_title || '',
+      i.listing_description || '',
+      i.listed_venue || '',
       i.sold_price ?? '',
       i.shipping_cost ?? '',
       net,
