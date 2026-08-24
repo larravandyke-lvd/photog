@@ -19,7 +19,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const allowed = [
     'title', 'category', 'notes', 'status', 'brand', 'model_number',
-    'serial_number', 'has_original_box', 'listed_venue',
+    'serial_number', 'has_original_box', 'listed_venue', 'duplicate_dismissed',
     'sold_price', 'sold_venue', 'shipping_cost', 'weight_value', 'weight_unit',
   ];
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };

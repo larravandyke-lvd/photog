@@ -12,4 +12,5 @@ alter table items add column if not exists brand text;
 alter table items add column if not exists listing_title text;
 alter table items add column if not exists listing_description text;
 alter table items add column if not exists listed_venue text;
+alter table items add column if not exists duplicate_dismissed boolean not null default false;
 alter table items add column if not exists has_original_box boolean not null default false;

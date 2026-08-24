@@ -21,6 +21,7 @@ create table if not exists items (
   listing_title text,                    -- ready-to-paste, platform-appropriate title
   listing_description text,              -- ready-to-paste full description
   listed_venue text,                     -- where it's currently posted (eBay, FB Marketplace, etc), or null if not yet decided
+  duplicate_dismissed boolean not null default false, -- set true once you've confirmed this isn't actually a duplicate
   weight_value numeric,                  -- as entered by you/Eric, in weight_unit
   weight_unit text check (weight_unit in ('g','oz')),
   ai_weight_estimate_g numeric,          -- AI's estimate from a scale photo, in grams, if visible

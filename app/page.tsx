@@ -16,6 +16,7 @@ type Item = {
   ai_price_low: number | null;
   ai_price_high: number | null;
   listed_venue: string | null;
+  duplicate_dismissed: boolean;
   ai_venues: { venue: string; why: string }[] | null;
   item_photos: { storage_path: string }[];
 };
@@ -39,6 +40,19 @@ export default function DashboardPage() {
   const filtered = filter === 'ALL' ? items : items.filter((i) => i.status === filter);
   const totalLow = filtered.reduce((s, i) => s + (i.ai_price_low || 0), 0);
   const totalHigh = filtered.reduce((s, i) => s + (i.ai_price_high || 0), 0);
+
+  // Flag possible duplicates: items sharing the same (non-empty) title, unless dismissed
+  const titleCounts: Record<string, number> = {};
+  for (const i of items) {
+    if (!i.title) continue;
+    const key = i.title.trim().toLowerCase();
+    titleCounts[key] = (titleCounts[key] || 0) + 1;
+  }
+  const duplicateIds = new Set(
+    items
+      .filter((i) => i.title && !i.duplicate_dismissed && titleCounts[i.title.trim().toLowerCase()] > 1)
+      .map((i) => i.id)
+  );
 
   return (
     <main className="min-h-screen bg-paper pb-24">
@@ -78,7 +92,7 @@ export default function DashboardPage() {
           <p className="col-span-2 text-center text-ink/40 py-10">No items yet — add the first one.</p>
         )}
         {filtered.map((item) => (
-          <ItemCard key={item.id} item={item} photoBaseUrl={photoBaseUrl} />
+          <ItemCard key={item.id} item={item} photoBaseUrl={photoBaseUrl} isDuplicate={duplicateIds.has(item.id)} />
         ))}
       </div>
 

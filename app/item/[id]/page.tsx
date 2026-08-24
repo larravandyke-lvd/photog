@@ -44,6 +44,7 @@ type Item = {
   listing_title: string | null;
   listing_description: string | null;
   listed_venue: string | null;
+  duplicate_dismissed: boolean;
   weight_value: number | null;
   weight_unit: 'g' | 'oz' | null;
   ai_weight_estimate_g: number | null;
@@ -64,6 +65,8 @@ export default function ItemDetailPage() {
   const [saving, setSaving] = useState(false);
   const [researching, setResearching] = useState(false);
   const [photoBaseUrl, setPhotoBaseUrl] = useState('');
+  const [duplicateMatches, setDuplicateMatches] = useState<{ id: string; item_number: number }[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setPhotoBaseUrl(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/item-photos`);
@@ -77,6 +80,31 @@ export default function ItemDetailPage() {
     setNotes(item?.notes || '');
     setWeightValue(item?.weight_value != null ? String(item.weight_value) : '');
     setWeightUnit(item?.weight_unit || 'g');
+
+    if (item?.title && !item.duplicate_dismissed) {
+      const allRes = await fetch('/api/items');
+      const { items: allItems } = await allRes.json();
+      const key = item.title.trim().toLowerCase();
+      const matches = (allItems || []).filter(
+        (i: { id: string; title: string | null }) =>
+          i.id !== item.id && i.title && i.title.trim().toLowerCase() === key
+      );
+      setDuplicateMatches(matches);
+    } else {
+      setDuplicateMatches([]);
+    }
+  }
+
+  async function dismissDuplicate() {
+    await updateItem({ duplicate_dismissed: true });
+    setDuplicateMatches([]);
+  }
+
+  async function deleteItem() {
+    if (!confirm('Delete this item permanently? This cannot be undone.')) return;
+    setDeleting(true);
+    await fetch(`/api/items/${id}`, { method: 'DELETE' });
+    router.push('/');
   }
 
   async function updateItem(fields: Partial<Item>) {
@@ -129,6 +157,23 @@ export default function ItemDetailPage() {
         </span>
       </div>
 
+      {duplicateMatches.length > 0 && (
+        <div className="mx-4 mt-3 bg-rust/10 border border-rust/40 rounded-lg p-3">
+          <p className="text-sm text-rust font-medium">
+            ⚠ Possible duplicate of{' '}
+            {duplicateMatches
+              .map((m) => getItemCode(m.item_number).code)
+              .join(', ')}{' '}
+            — same title.
+          </p>
+          <button
+            onClick={dismissDuplicate}
+            className="text-xs text-ink/60 underline mt-1"
+          >
+            Not a duplicate — clear this flag
+          </button>
+        </div>
+      )}
 
       {item.item_photos?.length > 0 && (
         <div className="flex gap-2 overflow-x-auto p-3 bg-charcoal">
@@ -389,6 +434,16 @@ export default function ItemDetailPage() {
         >
           ← Back to all items
         </button>
+
+        <div className="border-t border-sand pt-4">
+          <button
+            onClick={deleteItem}
+            disabled={deleting}
+            className="text-sm text-rust underline disabled:opacity-50"
+          >
+            {deleting ? 'Deleting…' : 'Delete this item permanently'}
+          </button>
+        </div>
       </div>
     </main>
   );

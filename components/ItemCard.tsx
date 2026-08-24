@@ -28,11 +28,20 @@ type Item = {
   ai_price_low: number | null;
   ai_price_high: number | null;
   listed_venue: string | null;
+  duplicate_dismissed: boolean;
   ai_venues: Venue[] | null;
   item_photos: Photo[];
 };
 
-export default function ItemCard({ item, photoBaseUrl }: { item: Item; photoBaseUrl: string }) {
+export default function ItemCard({
+  item,
+  photoBaseUrl,
+  isDuplicate,
+}: {
+  item: Item;
+  photoBaseUrl: string;
+  isDuplicate?: boolean;
+}) {
   const cover = item.item_photos?.[0];
   const sticker = getItemCode(item.item_number);
   return (
@@ -58,6 +67,11 @@ export default function ItemCard({ item, photoBaseUrl }: { item: Item; photoBase
         >
           {sticker.code}
         </span>
+        {isDuplicate && (
+          <span className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-semibold bg-rust text-paper">
+            ⚠ Possible dupe
+          </span>
+        )}
       </div>
       <div className="p-3">
         <p className="text-sm font-medium text-ink truncate">
