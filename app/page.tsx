@@ -11,6 +11,8 @@ type Item = {
   id: string;
   item_number: number;
   title: string | null;
+  brand: string | null;
+  model_number: string | null;
   category: string | null;
   status: string;
   ai_price_low: number | null;
@@ -42,15 +44,28 @@ export default function DashboardPage() {
   const totalHigh = filtered.reduce((s, i) => s + (i.ai_price_high || 0), 0);
 
   // Flag possible duplicates: items sharing the same (non-empty) title, unless dismissed
-  const titleCounts: Record<string, number> = {};
+  // Flag possible duplicates: prefer matching on brand+model number (more
+  // consistent across AI research runs than the free-text title), falling
+  // back to exact title match only when brand/model aren't set yet.
+  function dedupeKey(i: Item): string | null {
+    if (i.brand && i.model_number) {
+      return `${i.brand.trim().toLowerCase()}|${i.model_number.trim().toLowerCase()}`;
+    }
+    if (i.title) return `title:${i.title.trim().toLowerCase()}`;
+    return null;
+  }
+  const keyCounts: Record<string, number> = {};
   for (const i of items) {
-    if (!i.title) continue;
-    const key = i.title.trim().toLowerCase();
-    titleCounts[key] = (titleCounts[key] || 0) + 1;
+    const key = dedupeKey(i);
+    if (!key) continue;
+    keyCounts[key] = (keyCounts[key] || 0) + 1;
   }
   const duplicateIds = new Set(
     items
-      .filter((i) => i.title && !i.duplicate_dismissed && titleCounts[i.title.trim().toLowerCase()] > 1)
+      .filter((i) => {
+        const key = dedupeKey(i);
+        return key && !i.duplicate_dismissed && keyCounts[key] > 1;
+      })
       .map((i) => i.id)
   );
 
@@ -86,7 +101,7 @@ export default function DashboardPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 p-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 p-4">
         {loading && <p className="col-span-2 text-center text-ink/40 py-10">Loading…</p>}
         {!loading && filtered.length === 0 && (
           <p className="col-span-2 text-center text-ink/40 py-10">No items yet — add the first one.</p>

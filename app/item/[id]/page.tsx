@@ -81,14 +81,25 @@ export default function ItemDetailPage() {
     setWeightValue(item?.weight_value != null ? String(item.weight_value) : '');
     setWeightUnit(item?.weight_unit || 'g');
 
-    if (item?.title && !item.duplicate_dismissed) {
+    const hasDedupeInfo = (item?.brand && item?.model_number) || item?.title;
+    if (hasDedupeInfo && !item.duplicate_dismissed) {
       const allRes = await fetch('/api/items');
       const { items: allItems } = await allRes.json();
-      const key = item.title.trim().toLowerCase();
-      const matches = (allItems || []).filter(
-        (i: { id: string; title: string | null }) =>
-          i.id !== item.id && i.title && i.title.trim().toLowerCase() === key
-      );
+      type Candidate = { id: string; item_number: number; title: string | null; brand: string | null; model_number: string | null };
+      const key =
+        item.brand && item.model_number
+          ? `${item.brand.trim().toLowerCase()}|${item.model_number.trim().toLowerCase()}`
+          : `title:${item.title!.trim().toLowerCase()}`;
+      const matches = (allItems || []).filter((i: Candidate) => {
+        if (i.id === item.id) return false;
+        const iKey =
+          i.brand && i.model_number
+            ? `${i.brand.trim().toLowerCase()}|${i.model_number.trim().toLowerCase()}`
+            : i.title
+            ? `title:${i.title.trim().toLowerCase()}`
+            : null;
+        return iKey === key;
+      });
       setDuplicateMatches(matches);
     } else {
       setDuplicateMatches([]);
