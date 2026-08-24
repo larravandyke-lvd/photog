@@ -39,7 +39,7 @@ export default function AddItemPage() {
       setStage('notes');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
-      setStage('capture');
+      setStage('choose');
     }
   }
 
