@@ -26,6 +26,14 @@ say so in condition_assessment rather than leaving model_number vague. Getting t
 right matters more here than anywhere else in this task, since it drives both the identification
 and the price comparison.
 
+If the owner's notes contain a line starting with "Correction:", treat it as an authoritative
+fix to a previous AI assessment on this item — it means the owner is telling you something you
+got wrong or didn't know (e.g. "Correction: tested and works great" means the shutter/mechanism
+IS confirmed working, not "unconfirmed, check in hand"). Override any earlier assumption it
+contradicts and reflect the correction in condition_assessment, price_low/price_high, price_notes,
+and listing_description — a confirmed-working item should be priced and described accordingly,
+not hedged.
+
 If any photo shows the item's original manufacturer box, manual, or packaging alongside it, set
 "has_original_box" to true and mention it in condition_assessment — original packaging meaningfully
 increases value for collectible cameras, so call this out explicitly in price_notes too.
