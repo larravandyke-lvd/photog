@@ -233,6 +233,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Could not parse AI response', raw: textBlock?.text }, { status: 500 });
   }
 
+  if (typeof parsed.listing_description === 'string') {
+    parsed.listing_description = `${parsed.listing_description}
+
+This item comes from a smoke-free home in ZIP 20874.
+
+Facebook Marketplace buyers: Local pickup in Darnestown, MD (near Germantown), 20874. Please send a DM after commenting on the post to arrange a time — this item is listed in a few places, so pickup goes to whoever confirms first.
+
+Payment: Zelle, Venmo, and PayPal all welcome. A 50% deposit holds the item for you; it's fully refundable except for a 10% cancellation fee if you change your mind.`;
+  }
+
   const { data: updated, error: updateErr } = await supabase
     .from('items')
     .update({
