@@ -60,6 +60,15 @@ ranking — the first entry is the #1 recommendation, shown to the owner as "1st
   studio gear), local pickup-only items, or lower-value items where shipping cost would eat the
   margin.
 - Reverb: only relevant for audio-adjacent gear, not typically cameras.
+- Mercari: good general-purpose alternative to eBay for common, mid-value gear — its prepaid
+  shipping labels are single-priced nationwide by weight tier (not by buyer distance), which
+  makes shipping cost predictable, and its fee structure is often friendlier than eBay's for
+  lower-priced items. Consider recommending it alongside or instead of eBay for common,
+  non-collectible items in good condition.
+- Poshmark: only relevant when an item could appeal to Poshmark's fashion/lifestyle-focused
+  buyer base — camera bags, camera straps, leather cases, or other wearable/accessory items with
+  aesthetic appeal. Not a fit for camera bodies, lenses, or technical equipment. Poshmark's
+  shipping is a flat platform-set rate up to 5 lb, so it's simplest for small, light accessories.
 - KEH/Adorama/B&H used marketplace listings: for well-known modern digital bodies/lenses still
   in active production ecosystems.
 - Specialty forums or Facebook groups for a specific system (e.g. "Leica Photographers," "Pentax
@@ -213,6 +222,7 @@ export async function POST(req: Request) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
+      temperature: 0,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content }],
     }),
@@ -231,16 +241,6 @@ export async function POST(req: Request) {
     parsed = JSON.parse(cleaned);
   } catch {
     return NextResponse.json({ error: 'Could not parse AI response', raw: textBlock?.text }, { status: 500 });
-  }
-
-  if (typeof parsed.listing_description === 'string') {
-    parsed.listing_description = `${parsed.listing_description}
-
-This item comes from a smoke-free home in ZIP 20874.
-
-Facebook Marketplace buyers: Local pickup in Darnestown, MD (near Germantown), 20874. Please send a DM after commenting on the post to arrange a time — this item is listed in a few places, so pickup goes to whoever confirms first.
-
-Payment: Zelle, Venmo, and PayPal all welcome. A 50% deposit holds the item for you; it's fully refundable except for a 10% cancellation fee if you change your mind.`;
   }
 
   const { data: updated, error: updateErr } = await supabase

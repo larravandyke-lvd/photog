@@ -7,7 +7,22 @@ import ShippingCalculator from '@/components/ShippingCalculator';
 import { getItemCode } from '@/lib/itemCode';
 
 const STATUSES = ['HOLD', 'PREP', 'FOR_SALE', 'LISTED', 'SOLD'];
-const VENUE_OPTIONS = ['eBay', 'Facebook Marketplace', 'KEH', 'MPB', 'Craigslist', 'Local/In-person', 'Other'];
+const VENUE_OPTIONS = ['eBay', 'Mercari', 'Poshmark', 'Facebook Marketplace', 'KEH', 'MPB', 'Craigslist', 'Local/In-person', 'Other'];
+
+type DescriptionPlatform = 'ebay' | 'facebook' | 'general';
+
+const SMOKE_FREE_LINE = 'This item comes from a smoke-free home in ZIP 20874.';
+const FB_PICKUP_LINE =
+  'Local pickup in Darnestown, MD (near Germantown), 20874. Please send a DM after commenting on the post to arrange a time — this item is listed in a few places, so pickup goes to whoever confirms first.';
+const PAYMENT_LINE =
+  "Payment: Zelle, Venmo, and PayPal all welcome. A 50% deposit holds the item for you; it's fully refundable except for a 10% cancellation fee if you change your mind.";
+
+function buildListingDescription(base: string, platform: DescriptionPlatform): string {
+  const parts = [base, SMOKE_FREE_LINE];
+  if (platform === 'facebook') parts.push(FB_PICKUP_LINE);
+  parts.push(PAYMENT_LINE);
+  return parts.join('\n\n');
+}
 
 function PullToRefresh({
   onRefresh,
@@ -139,6 +154,7 @@ export default function ItemDetailPage() {
   const [saving, setSaving] = useState(false);
   const [researching, setResearching] = useState(false);
   const [correctionInput, setCorrectionInput] = useState('');
+  const [descriptionPlatform, setDescriptionPlatform] = useState<DescriptionPlatform>('ebay');
   const [photoBaseUrl, setPhotoBaseUrl] = useState('');
   const [duplicateMatches, setDuplicateMatches] = useState<{ id: string; item_number: number }[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -557,11 +573,34 @@ export default function ItemDetailPage() {
               )}
               {item.listing_description && (
                 <div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-1.5">
                     <p className="text-xs text-ink/50">Listing description</p>
-                    <CopyButton text={item.listing_description} />
+                    <CopyButton text={buildListingDescription(item.listing_description, descriptionPlatform)} />
                   </div>
-                  <p className="text-sm mt-1 whitespace-pre-wrap">{item.listing_description}</p>
+                  <div className="flex gap-1.5 mb-2">
+                    {(
+                      [
+                        ['ebay', 'eBay'],
+                        ['facebook', 'Facebook Marketplace'],
+                        ['general', 'General'],
+                      ] as [DescriptionPlatform, string][]
+                    ).map(([value, label]) => (
+                      <button
+                        key={value}
+                        onClick={() => setDescriptionPlatform(value)}
+                        className={`text-xs px-2.5 py-1 rounded-full border ${
+                          descriptionPlatform === value
+                            ? 'bg-ink text-paper border-ink'
+                            : 'border-sand text-ink/60'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {buildListingDescription(item.listing_description, descriptionPlatform)}
+                  </p>
                 </div>
               )}
               {item.ai_venues && item.ai_venues.length > 0 && (

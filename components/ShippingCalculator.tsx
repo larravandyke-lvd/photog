@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function ShippingCalculator({
   weightValue,
@@ -9,42 +9,24 @@ export default function ShippingCalculator({
   weightValue: number | null;
   weightUnit: 'g' | 'oz' | null;
 }) {
-  const [fromZip, setFromZip] = useState('');
-  const [toZip, setToZip] = useState('');
-  const [length, setLength] = useState('');
-  const [width, setWidth] = useState('');
-  const [height, setHeight] = useState('');
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('shipping_from_zip');
-    setFromZip(saved || '20874');
-    if (!saved) localStorage.setItem('shipping_from_zip', '20874');
-  }, []);
-
-  function saveFromZip(zip: string) {
-    setFromZip(zip);
-    localStorage.setItem('shipping_from_zip', zip);
-  }
-
-  // Convert to pounds/oz for carrier tools, which are US-imperial by default
   const weightLb =
     weightValue && weightUnit === 'g'
       ? weightValue / 453.6
       : weightValue && weightUnit === 'oz'
       ? weightValue / 16
       : null;
-  const weightLbDisplay = weightLb ? weightLb.toFixed(2) : '';
-  const weightOzDisplay =
+  const weightOz =
     weightValue && weightUnit === 'oz'
-      ? weightValue.toFixed(1)
+      ? weightValue
       : weightValue && weightUnit === 'g'
-      ? (weightValue / 28.35).toFixed(1)
-      : '';
-
-  const uspsUrl = 'https://postcalc.usps.com/';
-  const upsUrl = 'https://wwwapps.ups.com/ctc/request?loc=en_US';
-  const fedexUrl = 'https://www.fedex.com/en-us/shipping/get-rates-quote.html';
+      ? weightValue / 28.35
+      : null;
+  const weightDisplay =
+    weightLb != null && weightOz != null
+      ? `${weightLb.toFixed(2)} lb (${weightOz.toFixed(1)} oz)`
+      : null;
 
   if (!open) {
     return (
@@ -52,7 +34,7 @@ export default function ShippingCalculator({
         onClick={() => setOpen(true)}
         className="w-full border border-sand text-ink/70 text-sm py-2.5 rounded-lg"
       >
-        Calculate shipping cost
+        Shipping: which option per platform
       </button>
     );
   }
@@ -60,105 +42,62 @@ export default function ShippingCalculator({
   return (
     <div className="border border-sand rounded-lg p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">Shipping calculator</p>
+        <p className="text-sm font-medium">Calculated shipping, per platform</p>
         <button onClick={() => setOpen(false)} className="text-xs text-ink/50">
           Close
         </button>
       </div>
 
-      {weightLbDisplay && (
+      {weightDisplay ? (
         <p className="text-xs text-ink/50">
-          Item weight: {weightLbDisplay} lb ({weightOzDisplay} oz) — carried over from what you entered.
+          This item&apos;s weight: <span className="font-medium">{weightDisplay}</span> — enter
+          this in whichever platform you list on below.
+        </p>
+      ) : (
+        <p className="text-xs text-rust">
+          Enter this item&apos;s weight above first — every platform below needs it to quote
+          shipping.
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block">
-          <span className="text-xs text-ink/50">From ZIP</span>
-          <input
-            value={fromZip}
-            onChange={(e) => saveFromZip(e.target.value)}
-            placeholder="e.g. 20878"
-            className="w-full border border-sand rounded-lg p-2 text-sm mt-0.5"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs text-ink/50">To ZIP</span>
-          <input
-            value={toZip}
-            onChange={(e) => setToZip(e.target.value)}
-            placeholder="buyer's ZIP"
-            className="w-full border border-sand rounded-lg p-2 text-sm mt-0.5"
-          />
-        </label>
-      </div>
+      <div className="space-y-2.5 text-sm">
+        <div className="bg-sand/40 rounded-lg p-2.5">
+          <p className="font-medium">eBay</p>
+          <p className="text-xs text-ink/60 mt-0.5">
+            Choose &quot;Calculated: Cost varies by buyer location&quot; when listing, and enter
+            this weight + your package dimensions. eBay quotes the buyer a live, accurate rate at
+            checkout using their discounted USPS/UPS rates — no need to pick a number yourself.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <label className="block">
-          <span className="text-xs text-ink/50">L (in)</span>
-          <input
-            value={length}
-            onChange={(e) => setLength(e.target.value)}
-            type="number"
-            className="w-full border border-sand rounded-lg p-2 text-sm mt-0.5"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs text-ink/50">W (in)</span>
-          <input
-            value={width}
-            onChange={(e) => setWidth(e.target.value)}
-            type="number"
-            className="w-full border border-sand rounded-lg p-2 text-sm mt-0.5"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs text-ink/50">H (in)</span>
-          <input
-            value={height}
-            onChange={(e) => setHeight(e.target.value)}
-            type="number"
-            className="w-full border border-sand rounded-lg p-2 text-sm mt-0.5"
-          />
-        </label>
-      </div>
+        <div className="bg-sand/40 rounded-lg p-2.5">
+          <p className="font-medium">Mercari</p>
+          <p className="text-xs text-ink/60 mt-0.5">
+            Mercari&apos;s prepaid labels are single-priced nationwide by weight tier — not by
+            buyer distance. Pick the correct weight tier at listing time (it rounds up to the
+            next tier, so weigh with packaging included) and it shows you the exact label price
+            immediately.
+          </p>
+        </div>
 
-      <p className="text-xs text-ink/50">
-        Carriers don't allow pre-filled rate links, so tap a button below to open their official
-        calculator, then enter the numbers above there for an exact live quote.
-      </p>
+        <div className="bg-sand/40 rounded-lg p-2.5">
+          <p className="font-medium">Poshmark</p>
+          <p className="text-xs text-ink/60 mt-0.5">
+            Poshmark charges one flat rate for anything up to 5 lb, shown directly in the app
+            when you list — no calculation needed. Heavier items (up to 15 lb) use a simple
+            upgraded label you purchase after the sale, from the order screen.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <a
-          href={uspsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-center text-xs bg-ink text-paper py-2 rounded-lg"
-        >
-          USPS
-        </a>
-        <a
-          href={upsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-center text-xs bg-ink text-paper py-2 rounded-lg"
-        >
-          UPS
-        </a>
-        <a
-          href={fedexUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-center text-xs bg-ink text-paper py-2 rounded-lg"
-        >
-          FedEx
-        </a>
-      </div>
-
-      <div className="text-xs text-ink/50 border-t border-sand pt-2">
-        <span className="font-medium">Other / oversized (tripods, light stands, cases):</span>{' '}
-        Greyhound Package Express and regional freight carriers can beat UPS/FedEx on large,
-        heavy, awkward-shaped items — worth a quick check for anything over ~30 lb or 3 ft long.
+        <div className="bg-sand/40 rounded-lg p-2.5">
+          <p className="font-medium">Facebook Marketplace</p>
+          <p className="text-xs text-ink/60 mt-0.5">
+            No built-in calculated shipping — this one&apos;s mostly local pickup (see the listing
+            description&apos;s pickup details). If a buyer wants it shipped, either quote a flat
+            price yourself or point them to buy it through Mercari/Poshmark instead, where the
+            label pricing is already handled.
+          </p>
+        </div>
       </div>
     </div>
   );
