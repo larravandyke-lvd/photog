@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import ShippingCalculator from '@/components/ShippingCalculator';
@@ -8,6 +8,80 @@ import { getItemCode } from '@/lib/itemCode';
 
 const STATUSES = ['HOLD', 'PREP', 'FOR_SALE', 'LISTED', 'SOLD'];
 const VENUE_OPTIONS = ['eBay', 'Facebook Marketplace', 'KEH', 'MPB', 'Craigslist', 'Local/In-person', 'Other'];
+
+function PullToRefresh({
+  onRefresh,
+  children,
+}: {
+  onRefresh: () => Promise<void>;
+  children: React.ReactNode;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const startY = useRef<number | null>(null);
+  const [pull, setPull] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const THRESHOLD = 70;
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+
+    function onTouchStart(e: TouchEvent) {
+      startY.current = window.scrollY <= 0 && !refreshing ? e.touches[0].clientY : null;
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (startY.current === null) return;
+      const delta = e.touches[0].clientY - startY.current;
+      if (delta > 0 && window.scrollY <= 0) {
+        e.preventDefault();
+        setPull(Math.min(delta * 0.5, 90));
+      } else {
+        startY.current = null;
+        setPull(0);
+      }
+    }
+
+    async function onTouchEnd() {
+      if (startY.current === null) return;
+      startY.current = null;
+      setPull((current) => {
+        if (current > THRESHOLD) {
+          setRefreshing(true);
+          onRefresh().finally(() => {
+            setRefreshing(false);
+            setPull(0);
+          });
+          return 60;
+        }
+        return 0;
+      });
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [onRefresh, refreshing]);
+
+  return (
+    <div ref={wrapRef}>
+      <div
+        className="flex items-center justify-center overflow-hidden transition-[height] duration-150"
+        style={{ height: pull }}
+      >
+        <span className="text-xs text-ink/50">
+          {refreshing ? 'Refreshing…' : pull > THRESHOLD ? 'Release to refresh' : pull > 0 ? 'Pull to refresh' : ''}
+        </span>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -200,6 +274,7 @@ export default function ItemDetailPage() {
   const sticker = getItemCode(item.item_number);
 
   return (
+    <PullToRefresh onRefresh={load}>
     <main className="min-h-screen bg-paper pb-16">
       <Header subtitle={`${sticker.name} sticker set`} />
 
@@ -544,5 +619,6 @@ export default function ItemDetailPage() {
         </div>
       </div>
     </main>
+    </PullToRefresh>
   );
 }
