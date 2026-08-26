@@ -64,6 +64,7 @@ export default function ItemDetailPage() {
   const [weightUnit, setWeightUnit] = useState<'g' | 'oz'>('g');
   const [saving, setSaving] = useState(false);
   const [researching, setResearching] = useState(false);
+  const [correctionInput, setCorrectionInput] = useState('');
   const [photoBaseUrl, setPhotoBaseUrl] = useState('');
   const [duplicateMatches, setDuplicateMatches] = useState<{ id: string; item_number: number }[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -151,6 +152,41 @@ export default function ItemDetailPage() {
     }
     await load();
     setResearching(false);
+  }
+
+  async function correctAndRerun(correctionText: string) {
+    const trimmed = correctionText.trim();
+    if (!trimmed) return;
+    const newNotes = notes ? `${notes}\n\nCorrection: ${trimmed}` : `Correction: ${trimmed}`;
+    setNotes(newNotes);
+    setResearching(true);
+    try {
+      // Save the note first so it's kept even if research fails.
+      await fetch(`/api/items/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: newNotes }),
+      });
+      const res = await fetch('/api/research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: id,
+          notes: newNotes,
+          weightValue: weightValue ? Number(weightValue) : undefined,
+          weightUnit: weightValue ? weightUnit : undefined,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(`AI research failed: ${body.error || res.statusText}`);
+      }
+    } catch (err) {
+      alert(`AI research failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    await load();
+    setResearching(false);
+    setCorrectionInput('');
   }
 
   if (!item) {
@@ -374,6 +410,34 @@ export default function ItemDetailPage() {
               {researching ? 'Working…' : item.ai_identification ? 'Re-run' : 'Run research'}
             </button>
           </div>
+
+          {item.ai_identification && (
+            <div className="mt-3 bg-sand/40 rounded-lg p-3">
+              <p className="text-xs text-ink/50 mb-1.5">Tell the AI something to fix</p>
+              <div className="flex gap-2">
+                <input
+                  value={correctionInput}
+                  onChange={(e) => setCorrectionInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') correctAndRerun(correctionInput);
+                  }}
+                  placeholder="e.g. tested and works great"
+                  className="flex-1 border border-sand rounded-lg p-2 text-sm bg-paper"
+                />
+                <button
+                  onClick={() => correctAndRerun(correctionInput)}
+                  disabled={researching || !correctionInput.trim()}
+                  className="text-xs bg-rust text-paper px-3 py-2 rounded-lg disabled:opacity-50 shrink-0"
+                >
+                  {researching ? 'Applying…' : 'Apply'}
+                </button>
+              </div>
+              <p className="text-xs text-ink/40 mt-1.5">
+                This gets added to your notes and the AI re-runs condition, pricing, and listing
+                copy with it in mind.
+              </p>
+            </div>
+          )}
 
           {item.ai_identification && (
             <div className="mt-3 space-y-4">
