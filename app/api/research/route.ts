@@ -123,6 +123,26 @@ Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact sha
   "listing_description": "string - full ready-to-paste description, plain text with paragraph breaks"
 }`;
 
+function detectImageMediaType(buf: Buffer): 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' {
+  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return 'image/png';
+  }
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') {
+    return 'image/webp';
+  }
+  if (buf.length >= 6 && buf.toString('ascii', 0, 6) === 'GIF89a') {
+    return 'image/gif';
+  }
+  if (buf.length >= 6 && buf.toString('ascii', 0, 6) === 'GIF87a') {
+    return 'image/gif';
+  }
+  // Fallback: assume JPEG since that's the most common case from CameraCapture
+  return 'image/jpeg';
+}
+
 export async function POST(req: Request) {
   const { itemId, notes, weightValue, weightUnit } = await req.json();
   if (!itemId) return NextResponse.json({ error: 'itemId required' }, { status: 400 });
@@ -151,7 +171,7 @@ export async function POST(req: Request) {
       type: 'image',
       source: {
         type: 'base64',
-        media_type: 'image/jpeg',
+        media_type: detectImageMediaType(buf),
         data: buf.toString('base64'),
       },
     });

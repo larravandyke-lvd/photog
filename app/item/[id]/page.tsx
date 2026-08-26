@@ -131,16 +131,24 @@ export default function ItemDetailPage() {
 
   async function runResearch() {
     setResearching(true);
-    await fetch('/api/research', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        itemId: id,
-        notes,
-        weightValue: weightValue ? Number(weightValue) : undefined,
-        weightUnit: weightValue ? weightUnit : undefined,
-      }),
-    });
+    try {
+      const res = await fetch('/api/research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: id,
+          notes,
+          weightValue: weightValue ? Number(weightValue) : undefined,
+          weightUnit: weightValue ? weightUnit : undefined,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(`AI research failed: ${body.error || res.statusText}`);
+      }
+    } catch (err) {
+      alert(`AI research failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
     await load();
     setResearching(false);
   }
