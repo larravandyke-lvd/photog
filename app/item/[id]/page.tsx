@@ -155,6 +155,9 @@ export default function ItemDetailPage() {
   const [researching, setResearching] = useState(false);
   const [correctionInput, setCorrectionInput] = useState('');
   const [descriptionPlatform, setDescriptionPlatform] = useState<DescriptionPlatform>('ebay');
+  const [descriptionEditOpen, setDescriptionEditOpen] = useState(false);
+  const [descriptionInstruction, setDescriptionInstruction] = useState('');
+  const [updatingDescription, setUpdatingDescription] = useState(false);
   const [photoBaseUrl, setPhotoBaseUrl] = useState('');
   const [duplicateMatches, setDuplicateMatches] = useState<{ id: string; item_number: number }[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -277,6 +280,29 @@ export default function ItemDetailPage() {
     await load();
     setResearching(false);
     setCorrectionInput('');
+  }
+
+  async function updateDescription(instructionText: string) {
+    const trimmed = instructionText.trim();
+    if (!trimmed) return;
+    setUpdatingDescription(true);
+    try {
+      const res = await fetch('/api/description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: id, instruction: trimmed }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(`Update failed: ${body.error || res.statusText}`);
+      }
+    } catch (err) {
+      alert(`Update failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    await load();
+    setUpdatingDescription(false);
+    setDescriptionInstruction('');
+    setDescriptionEditOpen(false);
   }
 
   if (!item) {
@@ -575,7 +601,15 @@ export default function ItemDetailPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <p className="text-xs text-ink/50">Listing description</p>
-                    <CopyButton text={buildListingDescription(item.listing_description, descriptionPlatform)} />
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setDescriptionEditOpen((o) => !o)}
+                        className="text-xs bg-sand text-ink px-2 py-1 rounded-full shrink-0"
+                      >
+                        Update description
+                      </button>
+                      <CopyButton text={buildListingDescription(item.listing_description, descriptionPlatform)} />
+                    </div>
                   </div>
                   <div className="flex gap-1.5 mb-2">
                     {(
@@ -598,6 +632,33 @@ export default function ItemDetailPage() {
                       </button>
                     ))}
                   </div>
+                  {descriptionEditOpen && (
+                    <div className="mb-2 bg-sand/40 rounded-lg p-3">
+                      <p className="text-xs text-ink/50 mb-1.5">Tell the AI what to change</p>
+                      <div className="flex gap-2">
+                        <input
+                          value={descriptionInstruction}
+                          onChange={(e) => setDescriptionInstruction(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') updateDescription(descriptionInstruction);
+                          }}
+                          placeholder="e.g. chronograph is tested and working"
+                          className="flex-1 border border-sand rounded-lg p-2 text-sm bg-paper"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => updateDescription(descriptionInstruction)}
+                          disabled={updatingDescription || !descriptionInstruction.trim()}
+                          className="text-xs bg-rust text-paper px-3 py-2 rounded-lg disabled:opacity-50 shrink-0"
+                        >
+                          {updatingDescription ? 'Updating…' : 'Apply'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-ink/40 mt-1.5">
+                        Rewrites just the description text above — doesn&apos;t touch price, condition, or venue picks.
+                      </p>
+                    </div>
+                  )}
                   <p className="text-sm whitespace-pre-wrap">
                     {buildListingDescription(item.listing_description, descriptionPlatform)}
                   </p>

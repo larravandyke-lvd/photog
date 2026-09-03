@@ -11,6 +11,14 @@ export default function Header({ subtitle }: { subtitle?: string }) {
           {subtitle && <p className="text-amber/80 text-xs tracking-wide truncate">{subtitle}</p>}
         </div>
       </Link>
+      <a
+        href="https://portals-gateway.vercel.app"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ml-auto shrink-0 text-xs font-semibold text-paper/70 hover:text-paper"
+      >
+        🔗 Portals Menu
+      </a>
     </header>
   );
 }
