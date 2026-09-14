@@ -148,6 +148,7 @@ export default function DashboardPage() {
       })
       .map((i) => i.id)
   );
+  const anySelectedAreDuplicates = Array.from(selectedIds).some((id) => duplicateIds.has(id));
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -187,6 +188,38 @@ export default function DashboardPage() {
         fetch(`/api/items/${id}`, { method: 'DELETE' }).catch((e) =>
           console.error('Failed to delete item', id, e)
         )
+      )
+    );
+    exitSelectMode();
+    loadItems();
+  }
+
+  async function setStatusOnSelected(status: string) {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/items/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        }).catch((e) => console.error('Failed to update status for item', id, e))
+      )
+    );
+    exitSelectMode();
+    loadItems();
+  }
+
+  async function dismissDuplicateOnSelected() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/items/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ duplicate_dismissed: true }),
+        }).catch((e) => console.error('Failed to dismiss duplicate for item', id, e))
       )
     );
     exitSelectMode();
@@ -288,17 +321,48 @@ export default function DashboardPage() {
       </div>
 
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-paper px-5 py-3 rounded-full shadow-lg flex items-center gap-3">
-          <span className="text-sm">{selectedIds.size} selected</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-paper px-4 py-3 rounded-full shadow-lg flex items-center gap-2 flex-wrap justify-center max-w-[95vw]">
+          <span className="text-sm whitespace-nowrap">{selectedIds.size} selected</span>
           <button
             onClick={runResearchOnSelected}
-            className="bg-rust text-paper text-sm px-4 py-1.5 rounded-full font-medium"
+            className="bg-rust text-paper text-sm px-4 py-1.5 rounded-full font-medium whitespace-nowrap"
           >
             Run AI research
           </button>
+          <select
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) setStatusOnSelected(e.target.value);
+              e.target.value = '';
+            }}
+            className="bg-transparent border border-paper/40 text-paper text-sm px-3 py-1.5 rounded-full font-medium"
+          >
+            <option value="" disabled>
+              Set status…
+            </option>
+            <option value="HOLD" className="text-ink">HOLD</option>
+            <option value="PREP" className="text-ink">PREP</option>
+            <option value="FOR_SALE" className="text-ink">FOR SALE</option>
+            <option value="LISTED" className="text-ink">LISTED</option>
+            <option value="SOLD" className="text-ink">SOLD</option>
+          </select>
+          <Link
+            href={`/export?ids=${Array.from(selectedIds).join(',')}`}
+            className="bg-transparent border border-paper/40 text-paper text-sm px-4 py-1.5 rounded-full font-medium whitespace-nowrap"
+          >
+            Export
+          </Link>
+          {anySelectedAreDuplicates && (
+            <button
+              onClick={dismissDuplicateOnSelected}
+              className="bg-transparent border border-paper/40 text-paper text-sm px-4 py-1.5 rounded-full font-medium whitespace-nowrap"
+            >
+              Dismiss duplicate flag
+            </button>
+          )}
           <button
             onClick={deleteSelected}
-            className="bg-transparent border border-paper/40 text-paper text-sm px-4 py-1.5 rounded-full font-medium"
+            className="bg-transparent border border-paper/40 text-paper text-sm px-4 py-1.5 rounded-full font-medium whitespace-nowrap"
           >
             Delete
           </button>
