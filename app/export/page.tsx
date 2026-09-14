@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { getItemCode } from '@/lib/itemCode';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -32,7 +33,11 @@ type Item = {
 };
 
 export default function ExportPage() {
-  const [items, setItems] = useState<Item[]>([]);
+  const searchParams = useSearchParams();
+  const idsParam = searchParams.get('ids');
+  const filterIds = idsParam ? new Set(idsParam.split(',').filter(Boolean)) : null;
+
+  const [allItems, setAllItems] = useState<Item[]>([]);
   const [photoBaseUrl, setPhotoBaseUrl] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -42,16 +47,24 @@ export default function ExportPage() {
       .then((r) => r.json())
       .then((d) => {
         const sorted = [...(d.items || [])].sort((a, b) => a.item_number - b.item_number);
-        setItems(sorted);
+        setAllItems(sorted);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // When ?ids=... is present (e.g. from the dashboard's multi-select "Export"
+  // action), show only those items — otherwise show the full inventory.
+  const items = filterIds ? allItems.filter((i) => filterIds.has(i.id)) : allItems;
 
   const totalNet = items.reduce(
     (s, i) => s + (i.sold_price != null ? i.sold_price - (i.shipping_cost || 0) : 0),
     0
   );
   const soldCount = items.filter((i) => i.status === 'SOLD').length;
+
+  // CSV download: pass the same ids through so the downloaded file matches
+  // what's shown on screen, when a selection is active.
+  const csvHref = filterIds ? `/api/export?ids=${Array.from(filterIds).join(',')}` : '/api/export';
 
   if (loading) {
     return (
@@ -67,7 +80,7 @@ export default function ExportPage() {
         <Link href="/" className="text-sm text-paper/70">← Back</Link>
         <div className="flex gap-2">
           <a
-            href="/api/export"
+            href={csvHref}
             className="text-xs bg-amber text-ink px-3 py-1.5 rounded-full font-medium"
           >
             Download CSV
@@ -83,7 +96,9 @@ export default function ExportPage() {
 
       <div className="max-w-3xl mx-auto p-6 print:p-2">
         <div className="mb-6 print:mb-4">
-          <h1 className="font-serif text-2xl font-semibold">PopPop's Collection — Inventory</h1>
+          <h1 className="font-serif text-2xl font-semibold">
+            PopPop's Collection — {filterIds ? 'Selected Items' : 'Inventory'}
+          </h1>
           <p className="text-sm text-ink/60 mt-1">
             {items.length} items · {soldCount} sold · ${totalNet.toFixed(2)} net earned so far
           </p>

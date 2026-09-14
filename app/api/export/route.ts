@@ -10,12 +10,21 @@ function csvEscape(v: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const idsParam = searchParams.get('ids');
+  const filterIds = idsParam ? idsParam.split(',').filter(Boolean) : null;
+
   const supabase = supabaseServer();
-  const { data: items, error } = await supabase
-    .from('items')
-    .select('*')
-    .order('item_number', { ascending: true });
+  let query = supabase.from('items').select('*').order('item_number', { ascending: true });
+
+  // When ?ids=... is present (e.g. from the dashboard's multi-select
+  // "Export" action), only include those specific items in the CSV.
+  if (filterIds && filterIds.length > 0) {
+    query = query.in('id', filterIds);
+  }
+
+  const { data: items, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -57,10 +66,12 @@ export async function GET() {
     .map((row) => row.map(csvEscape).join(','))
     .join('\n');
 
+  const filename = filterIds ? 'poppops-collection-selected.csv' : 'poppops-collection-inventory.csv';
+
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv',
-      'Content-Disposition': `attachment; filename="poppops-collection-inventory.csv"`,
+      'Content-Disposition': `attachment; filename="${filename}"`,
     },
   });
 }
