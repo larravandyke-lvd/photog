@@ -174,6 +174,25 @@ export default function DashboardPage() {
     exitSelectMode();
   }
 
+  async function deleteSelected() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const confirmed = window.confirm(
+      `Permanently delete ${ids.length} item${ids.length === 1 ? '' : 's'}? This cannot be undone.`
+    );
+    if (!confirmed) return;
+    // Fire deletes in parallel; each is independent of the others.
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/items/${id}`, { method: 'DELETE' }).catch((e) =>
+          console.error('Failed to delete item', id, e)
+        )
+      )
+    );
+    exitSelectMode();
+    loadItems();
+  }
+
   return (
     <main className="min-h-screen bg-paper pb-24">
       <Header subtitle={`${items.length} item${items.length === 1 ? '' : 's'} archived`} />
@@ -276,6 +295,12 @@ export default function DashboardPage() {
             className="bg-rust text-paper text-sm px-4 py-1.5 rounded-full font-medium"
           >
             Run AI research
+          </button>
+          <button
+            onClick={deleteSelected}
+            className="bg-transparent border border-paper/40 text-paper text-sm px-4 py-1.5 rounded-full font-medium"
+          >
+            Delete
           </button>
         </div>
       )}
