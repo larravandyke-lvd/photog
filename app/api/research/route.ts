@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase';
+import sharp from 'sharp';
 
 const SYSTEM_PROMPT = `You are an expert secondhand photography equipment appraiser and reseller,
 with deep knowledge equivalent to a senior buyer at KEH Camera or MPB, plus experience running
@@ -140,31 +141,39 @@ Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact sha
   "listing_description": "string - full ready-to-paste description, plain text with paragraph breaks"
 }`;
 
-function detectImageMediaType(buf: Buffer): 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' {
-  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
-    return 'image/png';
-  }
-  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
-    return 'image/jpeg';
-  }
-  if (buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') {
-    return 'image/webp';
-  }
-  if (buf.length >= 6 && buf.toString('ascii', 0, 6) === 'GIF89a') {
-    return 'image/gif';
-  }
-  if (buf.length >= 6 && buf.toString('ascii', 0, 6) === 'GIF87a') {
-    return 'image/gif';
-  }
-  // Fallback: assume JPEG since that's the most common case from CameraCapture
-  return 'image/jpeg';
+// Resize + compress before sending to Claude. Cuts image tokens significantly with
+// no meaningful loss of detail for model ID / serial number reading.
+async function prepareImageForClaude(buf: Buffer): Promise<{ mediaType: 'image/jpeg'; data: string }> {
+  const resized = await sharp(buf)
+    .rotate() // respect EXIF orientation
+    .resize({ width: 1568, height: 1568, fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 82 })
+    .toBuffer();
+  return { mediaType: 'image/jpeg', data: resized.toString('base64') };
 }
 
 export async function POST(req: Request) {
-  const { itemId, notes, weightValue, weightUnit } = await req.json();
+  const { itemId, notes, weightValue, weightUnit, force } = await req.json();
   if (!itemId) return NextResponse.json({ error: 'itemId required' }, { status: 400 });
 
   const supabase = supabaseServer();
+
+  // Skip re-running research on items already identified, unless forced or the
+  // notes contain a fresh correction the model needs to account for.
+  const { data: existingItem } = await supabase
+    .from('items')
+    .select('ai_identification')
+    .eq('id', itemId)
+    .single();
+
+  const hasCorrection = typeof notes === 'string' && notes.includes('Correction:');
+  if (existingItem?.ai_identification && !force && !hasCorrection) {
+    return NextResponse.json({
+      skipped: true,
+      reason: 'Item already researched. Pass force: true to re-run, or add a "Correction:" note.',
+    });
+  }
+
   const { data: photos, error: photoErr } = await supabase
     .from('item_photos')
     .select('storage_path')
@@ -176,7 +185,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'No photos uploaded for this item yet' }, { status: 400 });
   }
 
-  // Download each photo and base64-encode for the Claude API (max 5 photos to keep payload sane)
+  // Download, resize, and base64-encode each photo (max 5 photos to keep payload sane)
   const imageBlocks = [];
   for (const p of photos.slice(0, 5)) {
     const { data: fileData, error: dlErr } = await supabase.storage
@@ -184,14 +193,16 @@ export async function POST(req: Request) {
       .download(p.storage_path);
     if (dlErr || !fileData) continue;
     const buf = Buffer.from(await fileData.arrayBuffer());
-    imageBlocks.push({
-      type: 'image',
-      source: {
-        type: 'base64',
-        media_type: detectImageMediaType(buf),
-        data: buf.toString('base64'),
-      },
-    });
+    try {
+      const { mediaType, data } = await prepareImageForClaude(buf);
+      imageBlocks.push({
+        type: 'image',
+        source: { type: 'base64', media_type: mediaType, data },
+      });
+    } catch {
+      // If resizing fails for any reason, skip this photo rather than failing the whole request
+      continue;
+    }
   }
 
   const weightNote =
