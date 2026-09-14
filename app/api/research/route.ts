@@ -232,7 +232,9 @@ export async function POST(req: Request) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
+      // Raised from 1500, then 3000 — both still truncated on items with a lot
+      // to describe (e.g. a body+lens combo). 4096 gives real headroom.
+      max_tokens: 4096,
       temperature: 0,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content }],
@@ -246,12 +248,23 @@ export async function POST(req: Request) {
 
   const data = await res.json();
   const textBlock = data.content?.find((b: { type: string }) => b.type === 'text');
+  const stopReason = data.stop_reason;
   let parsed;
   try {
     const cleaned = (textBlock?.text || '').replace(/```json|```/g, '').trim();
     parsed = JSON.parse(cleaned);
   } catch {
-    return NextResponse.json({ error: 'Could not parse AI response', raw: textBlock?.text }, { status: 500 });
+    // Surface the raw response (and why it stopped) so a failure is diagnosable
+    // instead of a silent "could not parse" with no way to tell what happened.
+    const truncatedNote = stopReason === 'max_tokens' ? ' (response was truncated — hit max_tokens)' : '';
+    return NextResponse.json(
+      {
+        error: `Could not parse AI response${truncatedNote}`,
+        stop_reason: stopReason,
+        raw: textBlock?.text,
+      },
+      { status: 500 }
+    );
   }
 
   const { data: updated, error: updateErr } = await supabase
