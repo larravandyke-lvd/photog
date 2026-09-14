@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { getItemCode } from '@/lib/itemCode';
@@ -32,7 +32,7 @@ type Item = {
   item_photos: { storage_path: string }[];
 };
 
-export default function ExportPage() {
+function ExportPageContent() {
   const searchParams = useSearchParams();
   const idsParam = searchParams.get('ids');
   const filterIds = idsParam ? new Set(idsParam.split(',').filter(Boolean)) : null;
@@ -173,5 +173,19 @@ export default function ExportPage() {
         </table>
       </div>
     </main>
+  );
+}
+
+export default function ExportPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-paper flex items-center justify-center">
+          <p className="text-ink/40">Loading…</p>
+        </main>
+      }
+    >
+      <ExportPageContent />
+    </Suspense>
   );
 }
