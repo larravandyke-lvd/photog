@@ -77,6 +77,31 @@ export default function AddItemPage() {
     setPending(readPending());
   }, [stage]);
 
+  // Allow pasting one or more images directly from the clipboard (Cmd+V) while
+  // on the "choose" screen. Uses the native paste event + clipboardData rather
+  // than navigator.clipboard.read(), which has proven unreliable elsewhere.
+  useEffect(() => {
+    if (stage !== 'choose') return;
+    function handlePaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        handlePhotosDone(files);
+      }
+    }
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
+
   async function handlePhotosDone(photos: Blob[]) {
     setStage('uploading');
     setError('');
@@ -150,6 +175,7 @@ export default function AddItemPage() {
           </button>
           <p className="text-ink/50 text-sm text-center max-w-xs mt-2">
             You can select multiple photos at once from your library or drag them in on a laptop.
+            You can also paste photos directly with Cmd+V.
           </p>
           {error && (
             <p className="text-rust text-sm text-center max-w-xs mt-2 font-medium">{error}</p>
